@@ -1,0 +1,70 @@
+const User = require("../models/userModel");
+const { promisify } = require("util");
+const jwt = require("jsonwebtoken");
+const catchAsyncError = require("../utils/catchAsyncError");
+const AppError = require("../utils/appError");
+
+const getToken = (req) => {
+  if (req.headers.authorization?.startsWith("Bearer")) {
+    return req.headers.authorization.split(" ")[1];
+  }
+  if (req.cookies.jwt) {
+    return req.cookies.jwt;
+  }
+  return null;
+};
+
+const protect = catchAsyncError(async (req, res, next) => {
+  const token = getToken(req);
+  if (!token)
+    return next(
+      new AppError("You are not logged in! Please log in to get access", 401)
+    );
+
+  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+
+  const currentUser = await User.findById(decoded.id);
+  if (!currentUser) {
+    return next(new AppError("User no longer exists.", 401));
+  }
+
+  if (currentUser.changePasswordAfter(decoded.iat)) {
+    return next(
+      new AppError("User recently changed password! Please log in again.", 401)
+    );
+  }
+
+  req.user = currentUser;
+  next();
+});
+
+const restrictTo =
+  (...roles) =>
+  (req, res, next) => {
+    if (!roles.includes(req.user.role)) {
+      return next(
+        new AppError("You do not have permission to perform this action", 403)
+      );
+    }
+    next();
+  };
+
+const isLoggedIn = catchAsyncError(async (req, res, next) => {
+  const token = getToken(req);
+  if (!token) return next();
+
+  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+  if (!decoded) return next();
+
+  const user = await User.findById(decoded.id);
+  if (!user || user.changePasswordAfter(decoded.iat)) return next();
+
+  res.locals.user = user; 
+  next();
+});
+
+module.exports = {
+  protect,
+  restrictTo,
+  isLoggedIn,
+};
