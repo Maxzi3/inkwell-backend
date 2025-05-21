@@ -5,6 +5,17 @@ const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
+    fullName: {
+      type: String,
+      required: [true, "Please provide your full name"],
+      trim: true,
+      validate: {
+        validator: function (value) {
+          return value.split(" ").filter((word) => word).length >= 2;
+        },
+        message: "Please provide at least a first and last name",
+      },
+    },
     username: { type: String, required: true, unique: true },
     email: {
       type: String,
@@ -25,7 +36,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["reader", "author", "admin"],
-      default: "reader",
+      default: "author",
     },
     bio: { type: String, default: "" },
     emailVerified: {

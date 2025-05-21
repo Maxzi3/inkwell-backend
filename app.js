@@ -1,16 +1,19 @@
 const express = require("express");
-// const morgan = require("morgan");
+const morgan = require("morgan");
 // const rateLimit = require("express-rate-limit");
-// const helmet = require("helmet");
-// const mongoSanitize = require("express-mongo-sanitize");
-// const xss = require("xss-clean");
-// const hpp = require("hpp");
+const helmet = require("helmet");
+const mongoSanitize = require("express-mongo-sanitize");
+const xss = require("xss-clean");
+const hpp = require("hpp");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
 const globalErrorHandler = require("./controllers/errorController");
 const AppError = require("./utils/appError");
 const authRouter = require("./routes/authRoutes");
+const userRouter = require("./routes/userRoutes");
+const postRouter = require("./routes/postRoutes");
+const commentRouter = require("./routes/commentRoutes");
 
 const app = express();
 
@@ -25,12 +28,12 @@ app.use(
 );
 
 // Set Security HTTP Headers
-// app.use(helmet());
+app.use(helmet());
 
 // DEVELOPMENT LOGIN
-// if (process.env.NODE_ENV === "development") {
-//   app.use(morgan("dev"));
-// }
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
 // LIMIT REQUEST FROM API
 // const limiter = rateLimit({
@@ -46,18 +49,18 @@ app.use(
 app.use(express.json({ limit: "10kb" }));
 
 // Data Sanitization against NoSQL query Injection
-// app.use(mongoSanitize());
+app.use(mongoSanitize());
 app.use(cookieParser());
 
 // Data Sanitization against XSS
-// app.use(xss());
+app.use(xss());
 
 // Prevent Parameter Pollution
-// app.use(
-//   hpp({
-//     whitelist: ["duration", "ratingsQuantity", "ratingsAverage"],
-//   })
-// );
+app.use(
+  hpp({
+    whitelist: ["duration", "ratingsQuantity", "ratingsAverage"],
+  })
+);
 
 app.get("/", (req, res) => {
   res.send("Welcome to InkWell Backend API!");
@@ -65,9 +68,13 @@ app.get("/", (req, res) => {
 
 // Using Express router
 app.use("/api/auth", authRouter);
+app.use("/api/users", userRouter);
+app.use("/api/posts", postRouter);
+app.use("/api/posts/:postId/comments", commentRouter);
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
 });
+
 app.use(globalErrorHandler);
 module.exports = app;

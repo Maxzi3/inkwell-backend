@@ -14,9 +14,9 @@ dotenv.config({ path: "./config.env" });
 const app = require("./app");
 
 // Connect to MongoDB
-// mongoose
-//   .connect(process.env.DATABASE_LOCAL)
-//   .then(() => console.log("Connected to MongoDB"));
+mongoose
+  .connect(process.env.DATABASE_LOCAL)
+  .then(() => console.log("Connected to MongoDB"));
 
 // const mongoURI = process.env.DATABASE_URI;
 

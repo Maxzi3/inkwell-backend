@@ -3,14 +3,12 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const catchAsyncError = require("../utils/catchAsyncError");
 const AppError = require("../utils/appError");
-const { signAccessToken, signRefreshToken } = require("../utils/token");
-// const Email = require("../utils/email");
-
-const signToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
-  });
-};
+const {
+  signAccessToken,
+  signRefreshToken,
+  verifyRefreshToken,
+} = require("../utils/token");
+const Email = require("../utils/email");
 
 const createSendToken = (user, statusCode, res) => {
   const accessToken = signAccessToken(user._id);
@@ -37,9 +35,10 @@ const createSendToken = (user, statusCode, res) => {
 };
 
 const signUp = catchAsyncError(async (req, res, next) => {
-  const { username, email, password, phoneNumber, passwordConfirm } = req.body;
+  const { username, fullName, email, password, phoneNumber, passwordConfirm } =
+    req.body;
 
-  if (!username || !email || !phoneNumber || !password)
+  if (!username || !fullName || !email || !phoneNumber || !password)
     return next(new AppError("All fields are required", 400));
 
   const emailExists = await User.findOne({ email });
@@ -49,6 +48,7 @@ const signUp = catchAsyncError(async (req, res, next) => {
   if (usernameExists) return next(new AppError("Username already taken", 400));
 
   const newUser = await User.create({
+    fullName,
     username,
     email,
     password,
@@ -56,11 +56,11 @@ const signUp = catchAsyncError(async (req, res, next) => {
     passwordConfirm,
   });
 
-  //   const verificationToken = newUser.createEmailVerificationToken();
-  //   await newUser.save({ validateBeforeSave: false });
+  const verificationToken = newUser.createEmailVerificationToken();
+  await newUser.save({ validateBeforeSave: false });
 
-  //   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-  //   await new Email(newUser, verificationUrl).sendEmailVerification();
+  const verificationUrl = `${process.env.BACKEND_URL}/verify-email/${verificationToken}`;
+  await new Email(newUser, verificationUrl).sendEmailVerification();
 
   res.status(201).json({
     status: "success",
@@ -102,6 +102,7 @@ const logout = (req, res) => {
 
 const refreshToken = catchAsyncError(async (req, res, next) => {
   const token = req.cookies.refreshToken;
+  
 
   if (!token) return next(new AppError("No refresh token found", 401));
 
@@ -131,10 +132,10 @@ const forgotPassword = catchAsyncError(async (req, res, next) => {
   await user.save({ validateBeforeSave: false });
 
   // 3) Create reset URL
-  //   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
   try {
-    // await new Email(user, resetUrl).sendPasswordReset();
+    await new Email(user, resetUrl).sendPasswordReset();
     res.status(200).json({
       status: "success",
       message: "Password reset link sent to email",
@@ -196,67 +197,67 @@ const updatePassword = catchAsyncError(async (req, res, next) => {
   createSendToken(user, 200, res);
 });
 
-// const verifyEmail = catchAsyncError(async (req, res, next) => {
-//   const hashedToken = crypto
-//     .createHash("sha256")
-//     .update(req.params.token)
-//     .digest("hex");
+const verifyEmail = catchAsyncError(async (req, res, next) => {
+  const hashedToken = crypto
+    .createHash("sha256")
+    .update(req.params.token)
+    .digest("hex");
 
-//   const user = await User.findOne({
-//     emailVerificationToken: hashedToken,
-//     emailVerificationTokenExpires: { $gt: Date.now() },
-//   });
+  const user = await User.findOne({
+    emailVerificationToken: hashedToken,
+    emailVerificationTokenExpires: { $gt: Date.now() },
+  });
 
-//   if (!user) {
-//     return next(new AppError("Token is invalid or has expired", 400));
-//   }
+  if (!user) {
+    return next(new AppError("Token is invalid or has expired", 400));
+  }
 
-//   if (user.emailVerified === "verified") {
-//     res.status(200).json({
-//       status: "success",
-//       verified: true,
-//       redirectTo: `${process.env.FRONTEND_URL}/login?alreadyVerified=true`,
-//     });
-//   }
+  if (user.emailVerified === "verified") {
+    res.status(200).json({
+      status: "success",
+      verified: true,
+      redirectTo: `${process.env.FRONTEND_URL}/login?alreadyVerified=true`,
+    });
+  }
 
-//   user.emailVerified = "verified";
-//   user.emailVerificationToken = undefined;
-//   user.emailVerificationTokenExpires = undefined;
+  user.emailVerified = "verified";
+  user.emailVerificationToken = undefined;
+  user.emailVerificationTokenExpires = undefined;
 
-//   // Send welcome email
-//   if (!user.welcomeEmailSent) {
-//     const welcomeUrl = `${process.env.FRONTEND_URL}`;
-//     await new Email(user, welcomeUrl).sendWelcome();
-//     user.welcomeEmailSent = true;
-//   }
+  // Send welcome email
+  if (!user.welcomeEmailSent) {
+    const welcomeUrl = `${process.env.FRONTEND_URL}`;
+    await new Email(user, welcomeUrl).sendWelcome();
+    user.welcomeEmailSent = true;
+  }
 
-//   await user.save({ validateBeforeSave: false });
+  await user.save({ validateBeforeSave: false });
 
-//   // ✅ Redirect to login page with a query flag
-//   res.status(200).json({
-//     status: "success",
-//     verified: true,
-//     redirectTo: `${process.env.FRONTEND_URL}/login?verified=true`,
-//   });
-// });
+  // ✅ Redirect to login page with a query flag
+  res.status(200).json({
+    status: "success",
+    verified: true,
+    redirectTo: `${process.env.FRONTEND_URL}/login?verified=true`,
+  });
+});
 
-// const resendEmailVerification = catchAsyncError(async (req, res, next) => {
-//   const user = await User.findOne({ email: req.body.email });
-//   if (!user) return next(new AppError("User not found", 404));
-//   if (user.emailVerified === "verified")
-//     return next(new AppError("Email already verified", 400));
+const resendEmailVerification = catchAsyncError(async (req, res, next) => {
+  const user = await User.findOne({ email: req.body.email });
+  if (!user) return next(new AppError("User not found", 404));
+  if (user.emailVerified === "verified")
+    return next(new AppError("Email already verified", 400));
 
-//   const verificationToken = user.createEmailVerificationToken();
-//   await user.save({ validateBeforeSave: false });
+  const verificationToken = user.createEmailVerificationToken();
+  await user.save({ validateBeforeSave: false });
 
-//   const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-//   await new Email(user, verificationUrl).sendEmailVerification();
+  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+  await new Email(user, verificationUrl).sendEmailVerification();
 
-//   res.status(200).json({
-//     status: "success",
-//     message: "Verification email resent",
-//   });
-// });
+  res.status(200).json({
+    status: "success",
+    message: "Verification email resent",
+  });
+});
 
 module.exports = {
   signUp,
