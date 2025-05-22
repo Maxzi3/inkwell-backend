@@ -58,16 +58,16 @@ module.exports = class Email {
         <body>
           <div class="container">
             <div class="header">
-              <h1>Welcome to Shopnix!</h1>
+              <h1>Welcome to InkWell!</h1>
             </div>
             <div class="content">
               <p>Hi ${this.firstName},</p>
-              <p>Thank you for joining the Shopnix family! We're excited to have you on board.</p>
+              <p>Thank you for joining the InkWell family! We're excited to have you on board.</p>
               <p>Start exploring our amazing products and enjoy a seamless shopping experience.</p>
               <a class="button" href="${this.url}">Shop Now</a>
             </div>
             <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} Shopnix. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} InkWell. All rights reserved.</p>
               <p>If you didn’t sign up, please ignore this email.</p>
             </div>
           </div>
@@ -98,12 +98,12 @@ module.exports = class Email {
             </div>
             <div class="content">
               <p>Hi ${this.firstName},</p>
-              <p>Please verify your email address to complete your Shopnix account setup.</p>
+              <p>Please verify your email address to complete your InkWell account setup.</p>
               <p>Click the button below to verify your email. This link expires in 24 hours.</p>
               <a class="button" href="${this.url}">Verify Email</a>
             </div>
             <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} Shopnix. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} InkWell. All rights reserved.</p>
               <p>If you didn’t request this, please ignore this email.</p>
             </div>
           </div>
@@ -134,12 +134,12 @@ module.exports = class Email {
             </div>
             <div class="content">
               <p>Hi ${this.firstName},</p>
-              <p>You requested to reset your Shopnix password. Click the button below to set a new password.</p>
+              <p>You requested to reset your InkWell password. Click the button below to set a new password.</p>
               <p>This link expires in 10 minutes.</p>
               <a class="button" href="${this.url}">Reset Password</a>
             </div>
             <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} Shopnix. All rights reserved.</p>
+              <p>&copy; ${new Date().getFullYear()} InkWell. All rights reserved.</p>
               <p>If you didn’t request this, please ignore this email.</p>
             </div>
           </div>
@@ -162,14 +162,14 @@ module.exports = class Email {
   }
 
   async sendWelcome() {
-    await this.send("welcome", "Welcome to the Shopnix Family!");
+    await this.send("welcome", "Welcome to the InkWell Family!");
   }
 
   async sendEmailVerification() {
-    await this.send("verifyEmail", "Verify Your Shopnix Account");
+    await this.send("verifyEmail", "Verify Your InkWell Account");
   }
 
   async sendPasswordReset() {
-    await this.send("resetPassword", "Reset Your Shopnix Password");
+    await this.send("resetPassword", "Reset Your InkWell Password");
   }
 };

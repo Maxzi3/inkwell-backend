@@ -1,4 +1,5 @@
 const Comment = require("../models/commentModel");
+const Post = require("../models/postModel");
 const catchAsyncError = require("../utils/catchAsyncError");
 const AppError = require("../utils/appError");
 
@@ -69,15 +70,12 @@ const updateComment = catchAsyncError(async (req, res, next) => {
 const deleteComment = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  // 1. Find the comment/reply
   const comment = await Comment.findById(id);
   if (!comment) return next(new AppError("Comment not found", 404));
 
-  // 2. Get the post it's attached to
   const post = await Post.findById(comment.post);
   if (!post) return next(new AppError("Post not found", 404));
 
-  // 3. Check permissions
   const isCommentOwner = comment.user.toString() === req.user._id.toString();
   const isPostAuthor = post.author.toString() === req.user._id.toString();
 
@@ -87,12 +85,14 @@ const deleteComment = catchAsyncError(async (req, res, next) => {
     );
   }
 
-  // 4. Delete it
-  await comment.deleteOne();
+  // Delete the comment and all its direct replies
+  await Comment.deleteMany({
+    $or: [{ _id: comment._id }, { parent: comment._id }],
+  });
 
-  res.status(204).json({
+  res.status(200).json({
     status: "success",
-    message: "Comment deleted successfully",
+    message: "Comment and its replies deleted",
   });
 });
 

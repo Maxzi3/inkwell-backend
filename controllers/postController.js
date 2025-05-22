@@ -15,11 +15,21 @@ const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
   }
 
   const post = await query.populate({
-    path: "comment",
-    populate: {
-      path: "user",
-      select: "fullName avatar",
-    },
+    path: "comments",
+    match: { parent: null },
+    populate: [
+      {
+        path: "user",
+        select: "fullName avatar",
+      },
+      {
+        path: "replies",
+        populate: {
+          path: "user",
+          select: "fullName avatar",
+        },
+      },
+    ],
   });
 
   if (!post) return next(new AppError("Post not found", 404));
@@ -34,21 +44,46 @@ const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
   });
 });
 
-// TOGGLE DRAFT STATUS
-const toggleDraftStatus = catchAsyncError(async (req, res, next) => {
-  const post = await Post.findById(req.params.id);
+// TOGGLE DRAFT
+const saveAsDraft = catchAsyncError(async (req, res, next) => {
+  const { title, content } = req.body;
 
-  if (!post) return next(new AppError("Post not found", 404));
-  if (!post.author.equals(req.user._id)) {
-    return next(new AppError("You can only update your own posts", 403));
+  const draftpost = await Post.create({
+    title,
+    content,
+    author: req.user._id,
+    isDraft: true,
+  });
+
+  res.status(201).json({
+    status: "success",
+    data: draftpost,
+  });
+});
+
+// Publish draft
+const publishDraft = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+
+  // Find the post first
+  const post = await Post.findOne({
+    _id: id,
+    author: req.user._id,
+    isDraft: true, // make sure it's currently a draft
+  });
+
+  if (!post) {
+    return next(new AppError("Draft not found or already published", 404));
   }
 
-  post.isDraft = !post.isDraft;
+  // Update draft status
+  post.isDraft = false;
   await post.save();
 
   res.status(200).json({
     status: "success",
-    message: `Post is now ${post.isDraft ? "in draft mode" : "published"}`,
+    message: "Post has been published.",
+    post,
   });
 });
 
@@ -113,6 +148,20 @@ const getMyDrafts = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const getMyLikes = catchAsyncError(async (req, res, next) => {
+  const likes = await Post.find({
+    likes: req.user._id,
+    isDraft: false,
+    deleted: false,
+  }).sort("-createdAt");
+
+  res.status(200).json({
+    status: "success",
+    results: likes.length,
+    data: likes,
+  });
+});
+
 const getMyBookmarks = catchAsyncError(async (req, res, next) => {
   const bookmarks = await Post.find({
     bookmarks: req.user._id,
@@ -140,7 +189,9 @@ module.exports = {
   deletePost,
   toggleLike,
   toggleBookmark,
-  toggleDraftStatus,
+  saveAsDraft,
   getMyDrafts,
   getMyBookmarks,
+  publishDraft,
+  getMyLikes,
 };

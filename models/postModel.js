@@ -16,14 +16,14 @@ const postSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
-  comment: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
-  isDraft: { type: Boolean, default: false },
+  isDraft: { type: Boolean, default: false, select: false },
   views: { type: Number, default: 0 },
   likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   bookmarks: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   deleted: {
     type: Boolean,
     default: false,
+    select: false,
   },
 });
 
@@ -33,4 +33,14 @@ postSchema.pre("save", function (next) {
   this.slug = slugify(this.title, { lower: true });
   next();
 });
+
+// Virtual populate for comment
+postSchema.virtual("comments", {
+  ref: "Comment",
+  foreignField: "post",
+  localField: "_id",
+});
+
+postSchema.set("toObject", { virtuals: true });
+postSchema.set("toJSON", { virtuals: true });
 module.exports = mongoose.model("Post", postSchema);

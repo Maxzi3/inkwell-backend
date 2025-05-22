@@ -48,7 +48,6 @@ const restrictTo =
 
 const isLoggedIn = catchAsyncError(async (req, res, next) => {
   const token = getToken(req);
-  console.log(token);
   if (!token) return next();
 
   const decoded = verifyAccessToken(token);
@@ -58,7 +57,6 @@ const isLoggedIn = catchAsyncError(async (req, res, next) => {
   if (!user || user.changePasswordAfter(decoded.iat)) return next();
 
   res.locals.user = user;
-  console.log(res.locals.user);
   next();
 });
 
