@@ -35,118 +35,98 @@ module.exports = class Email {
 
   // Send the actual email
   async send(template, subject) {
-    let html;
+    let bodyContent = "";
 
-    // Define HTML templates inline
     if (template === "welcome") {
-      html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${subject}</title>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #f4f4f4; padding: 10px; text-align: center; }
-            .content { padding: 20px; }
-            .button { display: inline-block; padding: 10px 20px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px; }
-            .footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Welcome to InkWell!</h1>
-            </div>
-            <div class="content">
-              <p>Hi ${this.firstName},</p>
-              <p>Thank you for joining the InkWell family! We're excited to have you on board.</p>
-              <p>Start exploring our amazing products and enjoy a seamless shopping experience.</p>
-              <a class="button" href="${this.url}">Shop Now</a>
-            </div>
-            <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} InkWell. All rights reserved.</p>
-              <p>If you didn’t sign up, please ignore this email.</p>
-            </div>
-          </div>
-        </body>
-        </html>
+      bodyContent = `
+        <p>Hi ${this.firstName},</p>
+        <p>Thank you for joining the InkWell family! We're excited to have you on board.</p>
+        <p>Start exploring our amazing products and enjoy a seamless experience.</p>
+        <a href="${this.url}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">Shop Now</a>
       `;
     } else if (template === "verifyEmail") {
-      html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${subject}</title>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #f4f4f4; padding: 10px; text-align: center; }
-            .content { padding: 20px; }
-            .button { display: inline-block; padding: 10px 20px; background: #28a745; color: #fff; text-decoration: none; border-radius: 5px; }
-            .footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Verify Your Email</h1>
-            </div>
-            <div class="content">
-              <p>Hi ${this.firstName},</p>
-              <p>Please verify your email address to complete your InkWell account setup.</p>
-              <p>Click the button below to verify your email. This link expires in 24 hours.</p>
-              <a class="button" href="${this.url}">Verify Email</a>
-            </div>
-            <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} InkWell. All rights reserved.</p>
-              <p>If you didn’t request this, please ignore this email.</p>
-            </div>
-          </div>
-        </body>
-        </html>
+      bodyContent = `
+        <p>Hi ${this.firstName},</p>
+        <p>Please verify your email address to complete your InkWell account setup.</p>
+        <p>This link expires in 24 hours.</p>
+        <a href="${this.url}" style="display: inline-block; padding: 12px 24px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px;">Verify Email</a>
       `;
     } else if (template === "resetPassword") {
-      html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>${subject}</title>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #f4f4f4; padding: 10px; text-align: center; }
-            .content { padding: 20px; }
-            .button { display: inline-block; padding: 10px 20px; background: #dc3545; color: #fff; text-decoration: none; border-radius: 5px; }
-            .footer { text-align: center; font-size: 12px; color: #777; margin-top: 20px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Reset Your Password</h1>
-            </div>
-            <div class="content">
-              <p>Hi ${this.firstName},</p>
-              <p>You requested to reset your InkWell password. Click the button below to set a new password.</p>
-              <p>This link expires in 10 minutes.</p>
-              <a class="button" href="${this.url}">Reset Password</a>
-            </div>
-            <div class="footer">
-              <p>&copy; ${new Date().getFullYear()} InkWell. All rights reserved.</p>
-              <p>If you didn’t request this, please ignore this email.</p>
-            </div>
-          </div>
-        </body>
-        </html>
+      bodyContent = `
+        <p>Hi ${this.firstName},</p>
+        <p>You requested to reset your InkWell password.</p>
+        <p>This link expires in 10 minutes.</p>
+        <a href="${this.url}" style="display: inline-block; padding: 12px 24px; background-color: #dc3545; color: white; text-decoration: none; border-radius: 4px;">Reset Password</a>
       `;
     }
+
+    const html = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>${subject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f2f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width: 640px; margin: auto;">
+        <tr>
+          <td style="padding: 40px 0; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px; color: #333;">${subject}</h1>
+          </td>
+        </tr>
+    
+        <tr>
+          <td style="background: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.05);">
+            <p style="font-size: 16px; line-height: 1.6; color: #4a4a4a; margin-top: 0;">
+              Hi ${this.firstName},
+            </p>
+    
+            <p style="font-size: 16px; line-height: 1.6; color: #4a4a4a;">
+              ${
+                template === "welcome"
+                  ? `Thank you for joining the InkWell family! We're thrilled to have you onboard.`
+                  : template === "verifyEmail"
+                  ? `Please verify your email to activate your InkWell account. This link is only valid for 24 hours.`
+                  : `You requested to reset your password. Click below to set a new one. This link expires in 10 minutes.`
+              }
+            </p>
+    
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${this.url}" style="background-color: ${
+      template === "welcome"
+        ? "#007bff"
+        : template === "verifyEmail"
+        ? "#28a745"
+        : "#dc3545"
+    }; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; display: inline-block; font-size: 16px;">
+                ${
+                  template === "welcome"
+                    ? "Get Started"
+                    : template === "verifyEmail"
+                    ? "Verify Email"
+                    : "Reset Password"
+                }
+              </a>
+            </div>
+    
+            <p style="font-size: 14px; color: #888; text-align: center; margin-top: 30px;">
+              If you didn't request this, you can safely ignore this email.
+            </p>
+          </td>
+        </tr>
+    
+        <tr>
+          <td style="text-align: center; font-size: 12px; color: #999; padding: 20px 0;">
+            &copy; ${new Date().getFullYear()} InkWell. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    
+    </body>
+    </html>
+    `;
 
     // Define email options
     const mailOptions = {

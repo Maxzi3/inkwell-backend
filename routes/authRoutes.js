@@ -10,7 +10,7 @@ const {
   resendEmailVerification,
   refreshToken,
 } = require("../controllers/authController");
-const { isLoggedIn } = require("../middlewares/authMiddlewares");
+const { isLoggedIn, protect } = require("../middlewares/authMiddlewares");
 
 const router = express.Router();
 
@@ -20,7 +20,7 @@ router.post("/refresh-token", refreshToken);
 router.get("/logout", logout);
 router.post("/forgotPassword", forgotPassword);
 router.post("/resend-verification", resendEmailVerification);
-router.patch("/updateMyPassword", updatePassword);
+router.patch("/updateMyPassword", protect, updatePassword);
 
 router.get("/check-auth", isLoggedIn, (req, res) => {
   if (!res.locals?.user) {
@@ -38,6 +38,6 @@ router.get("/check-auth", isLoggedIn, (req, res) => {
 });
 
 router.get("/verify-email/:token", verifyEmail);
-router.patch("/resetPassword/:token", resetPassword);
+router.patch("/reset-password/:token", resetPassword);
 
 module.exports = router;

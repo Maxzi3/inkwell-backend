@@ -1,5 +1,6 @@
 const Comment = require("../models/commentModel");
 const Post = require("../models/postModel");
+const Notification = require("../models/notificationModel");
 const catchAsyncError = require("../utils/catchAsyncError");
 const AppError = require("../utils/appError");
 
@@ -7,6 +8,19 @@ const AppError = require("../utils/appError");
 const createComment = catchAsyncError(async (req, res, next) => {
   const { postId } = req.params;
   const { content, parent } = req.body;
+
+  const post = await Post.findById(postId);
+
+  // Notify post author (avoid notifying self)
+  if (post.author.toString() !== req.user._id.toString()) {
+    await Notification.create({
+      recipient: post.author,
+      sender: req.user._id,
+      type: "comment",
+      post: postId,
+      comment: comment._id,
+    });
+  }
 
   const newComment = await Comment.create({
     content,
@@ -25,20 +39,37 @@ const createComment = catchAsyncError(async (req, res, next) => {
 const getCommentsForPost = catchAsyncError(async (req, res, next) => {
   const { postId } = req.params;
 
-  const comments = await Comment.find({ post: postId, parent: null })
+  // Initial query: get top-level comments only
+  const initialQuery = Comment.find({ post: postId, parent: null });
+
+  // Apply APIFeatures to support pagination, sorting, etc.
+  const features = new APIFeatures(initialQuery, req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .paginate();
+
+  // Execute the query
+  const comments = await features.query
     .populate("user", "fullName avatar")
     .populate({
       path: "replies",
       populate: { path: "user", select: "fullName avatar" },
-    })
-    .sort("-createdAt");
+    });
+
+  // Get total count of top-level comments for metadata
+  const total = await Comment.countDocuments({ post: postId, parent: null });
 
   res.status(200).json({
     status: "success",
     results: comments.length,
+    total,
+    currentPage: parseInt(req.query.page, 10) || 1,
+    totalPages: Math.ceil(total / (parseInt(req.query.limit, 10) || 100)),
     data: comments,
   });
 });
+
 
 // Update comment or reply
 const updateComment = catchAsyncError(async (req, res, next) => {

@@ -49,5 +49,18 @@ class APIFeatures {
     this.query = this.query.skip(startIndex).limit(limit);
     return this;
   }
+  search(fields = []) {
+    if (this.queryString.search) {
+      const keyword = this.queryString.search.trim();
+
+      // Create a regex condition for each searchable field
+      const searchConditions = fields.map((field) => ({
+        [field]: { $regex: keyword, $options: "i" }, // case-insensitive
+      }));
+
+      this.query = this.query.find({ $or: searchConditions });
+    }
+    return this;
+  }
 }
 module.exports = APIFeatures;

@@ -14,6 +14,7 @@ const authRouter = require("./routes/authRoutes");
 const userRouter = require("./routes/userRoutes");
 const postRouter = require("./routes/postRoutes");
 const commentRouter = require("./routes/commentRoutes");
+const notificationRouter = require("./routes/notificationRoutes");
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
 app.use("/api/posts", postRouter);
 app.use("/api/posts/:postId/comments", commentRouter);
+app.use("/api/notifications", notificationRouter);
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));

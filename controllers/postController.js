@@ -1,8 +1,31 @@
 const mongoose = require("mongoose");
+const multer = require("multer");
+const { resizeImage, uploadToCloudinary } = require("../utils/cloudinary");
 const Post = require("../models/postModel");
+const Notification = require("../models/notificationModel");
 const factory = require("./factoryController");
 const catchAsyncError = require("../utils/catchAsyncError");
 const AppError = require("../utils/appError");
+
+const filterObj = (obj, ...allowedFields) => {
+  const newObj = {};
+  Object.keys(obj).forEach((el) => {
+    if (allowedFields.includes(el)) newObj[el] = obj[el];
+  });
+  return newObj;
+};
+
+const multerFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(new AppError("Not an image! Please upload only images.", 400), false);
+  }
+};
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage, fileFilter: multerFilter });
+const uploadPostImage = upload.single("image");
 
 const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -88,6 +111,7 @@ const publishDraft = catchAsyncError(async (req, res, next) => {
 });
 
 // TOGGLE LIKE
+
 const toggleLike = catchAsyncError(async (req, res, next) => {
   const post = await Post.findById(req.params.id);
   if (!post) return next(new AppError("Post not found", 404));
@@ -99,6 +123,15 @@ const toggleLike = catchAsyncError(async (req, res, next) => {
     post.likes.pull(userId);
   } else {
     post.likes.push(userId);
+
+    if (post.author.toString() !== userId.toString()) {
+      await Notification.create({
+        recipient: post.author,
+        sender: userId,
+        type: "like",
+        post: post._id,
+      });
+    }
   }
 
   await post.save();
@@ -176,7 +209,35 @@ const getMyBookmarks = catchAsyncError(async (req, res, next) => {
   });
 });
 
-const createPost = factory.createOne(Post, { setUser: true });
+const createPost = catchAsyncError(async (req, res, next) => {
+  // 1. Filter allowed fields
+  const filteredBody = filterObj(req.body, "title", "content", "category");
+
+  // 2. Set the author of the post
+  filteredBody.author = req.user._id;
+
+  // 3. Handle image uploads
+  if (req.files?.image?.[0]) {
+    const resizedBuffer = await resizeImage(req.files.image[0].buffer);
+    const uploadResult = await uploadToCloudinary(
+      resizedBuffer,
+      `post-cover-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      "posts"
+    );
+    filteredBody.image = uploadResult.secure_url;
+  }
+
+  // 4. Save the post
+  const newPost = await Post.create(filteredBody);
+
+  // 5. Send response
+  res.status(201).json({
+    status: "success",
+    data: newPost,
+  });
+});
+
+// const createPost = factory.createOne(Post, { setUser: true });
 const getAllPosts = factory.getAll(Post); // will exclude soft-deleted
 const updatePost = factory.updateOne(Post);
 const deletePost = factory.deleteOne(Post, { softDelete: true }); // 👈 soft delete!
@@ -194,4 +255,5 @@ module.exports = {
   getMyBookmarks,
   publishDraft,
   getMyLikes,
+  uploadPostImage,
 };

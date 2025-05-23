@@ -7,6 +7,10 @@ const postSchema = new mongoose.Schema({
     required: [true, "A post must have a title"],
   },
   slug: String,
+  category: { type: String, required: true, set: (val) => val.toLowerCase() },
+  image: {
+    type: String,
+  },
   content: {
     type: String,
     required: [true, "A post must have content"],
@@ -44,3 +48,5 @@ postSchema.virtual("comments", {
 postSchema.set("toObject", { virtuals: true });
 postSchema.set("toJSON", { virtuals: true });
 module.exports = mongoose.model("Post", postSchema);
+
+// #put category in post model and images

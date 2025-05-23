@@ -1,5 +1,4 @@
 const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const catchAsyncError = require("../utils/catchAsyncError");
 const AppError = require("../utils/appError");

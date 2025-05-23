@@ -13,6 +13,7 @@ const {
   getMyBookmarks,
   publishDraft,
   getMyLikes,
+  uploadPostImage,
 } = require("../controllers/postController");
 
 const router = express.Router();
@@ -24,7 +25,7 @@ router.get("/my/likes", protect, getMyLikes);
 router
   .route("/")
   .get(getAllPosts)
-  .post(protect, restrictTo("author", "admin"), createPost);
+  .post(protect, restrictTo("author", "admin"), uploadPostImage, createPost);
 
 router.post("/draft", protect, restrictTo("author", "admin"), saveAsDraft);
 router.patch("/:id/like", protect, toggleLike);
@@ -42,3 +43,7 @@ router
   .delete(protect, restrictTo("admin", "author"), deletePost);
 
 module.exports = router;
+
+
+// GET /api/v1/posts?search=typescript&page=1&limit=10
+// hit ths for searching posts by title or content
