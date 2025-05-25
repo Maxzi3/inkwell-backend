@@ -71,6 +71,12 @@ const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
 const saveAsDraft = catchAsyncError(async (req, res, next) => {
   const { title, content } = req.body;
 
+  if (!title) {
+    return next(
+      new AppError("Draft must have at least a title or content", 400)
+    );
+  }
+
   const draftpost = await Post.create({
     title,
     content,
@@ -217,8 +223,8 @@ const createPost = catchAsyncError(async (req, res, next) => {
   filteredBody.author = req.user._id;
 
   // 3. Handle image uploads
-  if (req.files?.image?.[0]) {
-    const resizedBuffer = await resizeImage(req.files.image[0].buffer);
+  if (req.file) {
+    const resizedBuffer = await resizeImage(req.file.buffer);
     const uploadResult = await uploadToCloudinary(
       resizedBuffer,
       `post-cover-${Date.now()}-${Math.floor(Math.random() * 10000)}`,

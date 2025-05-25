@@ -37,7 +37,9 @@ const getMe = catchAsyncError(async (req, res, next) => {
 });
 
 const updateMe = catchAsyncError(async (req, res, next) => {
+
   // 1) Prevent password updates through this route
+
   if (req.body.password || req.body.passwordConfirm) {
     return next(
       new AppError(
@@ -47,14 +49,16 @@ const updateMe = catchAsyncError(async (req, res, next) => {
     );
   }
 
+  if (req.body.email) {
+    return next(new AppError("You cannot change your email address", 400));
+  }
+
   // 2) Filter unwanted fields that shouldn't be updated
   const filteredBody = filterObj(
     req.body,
     "fullName",
-    "email",
     "address",
     "phoneNumber"
-    // username
   );
 
   if (req.file) {
@@ -65,8 +69,8 @@ const updateMe = catchAsyncError(async (req, res, next) => {
       "users"
     );
 
-    if (!uploadResult?.secure_url) {
-      return next(new AppError("Image upload failed", 500));
+    if (uploadResult.error || !uploadResult.secure_url) {
+      return next(new AppError("Failed to upload image", 500));
     }
 
     filteredBody.avatar = uploadResult.secure_url; // <<-- Push to filteredBody
@@ -77,9 +81,11 @@ const updateMe = catchAsyncError(async (req, res, next) => {
     new: true, // Return updated user
     runValidators: true, // Validate new data
   });
+
   if (!updatedUser) {
     return next(new AppError("User not found", 404));
   }
+  
   // 4) Send response with updated user
   res.status(200).json({
     status: "success",

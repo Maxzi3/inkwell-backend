@@ -2,17 +2,25 @@ const APIFeatures = require("../utils/apiFeatures");
 const catchAsyncError = require("../utils/catchAsyncError");
 const AppError = require("../utils/appError");
 
+
 const deleteOne = (Model, { softDelete = false } = {}) =>
   catchAsyncError(async (req, res, next) => {
-    let doc;
-
-    if (softDelete) {
-      doc = await Model.findByIdAndUpdate(req.params.id, { deleted: true });
-    } else {
-      doc = await Model.findByIdAndDelete(req.params.id);
-    }
+    const doc = await Model.findById(req.params.id);
 
     if (!doc) return next(new AppError("No document found with that ID", 404));
+
+    // Check if the user is allowed to delete
+    if (doc.author.toString() !== req.user.id && req.user.role !== "admin") {
+      return next(
+        new AppError("You are not allowed to delete this document", 403)
+      );
+    }
+
+    if (softDelete) {
+      await Model.findByIdAndUpdate(req.params.id, { deleted: true });
+    } else {
+      await Model.findByIdAndDelete(req.params.id);
+    }
 
     res.status(200).json({
       status: "success",
@@ -20,22 +28,38 @@ const deleteOne = (Model, { softDelete = false } = {}) =>
     });
   });
 
-const updateOne = (Model) =>
-  catchAsyncError(async (req, res, next) => {
-    const doc = await Model.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+  const updateOne = (Model) =>
+    catchAsyncError(async (req, res, next) => {
+      const doc = await Model.findById(req.params.id);
 
-    if (!doc) return next(new AppError("No document found with that ID", 404));
+      if (!doc)
+        return next(new AppError("No document found with that ID", 404));
 
-    res.status(200).json({
-      status: "success",
-      data: {
-        data: doc,
-      },
+      // Check if the user is allowed to update
+      if (doc.author.toString() !== req.user.id && req.user.role !== "admin") {
+        return next(
+          new AppError("You are not allowed to update this document", 403)
+        );
+      }
+
+      // Now update it
+      const updatedDoc = await Model.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
+
+      res.status(200).json({
+        status: "success",
+        data: {
+          data: updatedDoc,
+        },
+      });
     });
-  });
+  
 
 const createOne = (Model, { setUser = false } = {}) =>
   catchAsyncError(async (req, res, next) => {
