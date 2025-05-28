@@ -58,7 +58,9 @@ const updateMe = catchAsyncError(async (req, res, next) => {
     req.body,
     "fullName",
     "address",
-    "phoneNumber"
+    "phoneNumber",
+    "bio",
+    "username",
   );
 
   if (req.file) {

@@ -39,7 +39,7 @@ router.patch(
 router
   .route("/:id")
   .get(getPostByIdOrSlug)
-  .patch(protect, restrictTo("author", "admin"), updatePost)
+  .patch(protect, restrictTo("author", "admin"), uploadPostImage, updatePost)
   .delete(protect, restrictTo("admin", "author"), deletePost);
 
 module.exports = router;

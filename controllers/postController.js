@@ -243,9 +243,43 @@ const createPost = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const updatePost = catchAsyncError(async (req, res, next) => {
+  // Filter allowed fields
+  const filteredBody = filterObj(req.body, "title", "content", "category");
+
+  // Handle image uploads
+  if (req.file) {
+    const resizedBuffer = await resizeImage(req.file.buffer);
+    const uploadResult = await uploadToCloudinary(
+      resizedBuffer,
+      `post-cover-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      "posts"
+    );
+    filteredBody.image = uploadResult.secure_url;
+  }
+
+  // Update post
+  const updatedPost = await Post.findByIdAndUpdate(
+    req.params.id,
+    filteredBody,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  if (!updatedPost) {
+    return next(new AppError("Post not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: { updatedPost },
+  });
+});
+
 // const createPost = factory.createOne(Post, { setUser: true });
 const getAllPosts = factory.getAll(Post); // will exclude soft-deleted
-const updatePost = factory.updateOne(Post);
 const deletePost = factory.deleteOne(Post, { softDelete: true }); // 👈 soft delete!
 
 module.exports = {
