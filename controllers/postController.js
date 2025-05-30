@@ -37,24 +37,30 @@ const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
     query = Post.findOne({ slug: id });
   }
 
-  const post = await query.populate({
-    path: "comments",
-    match: { parent: null },
-    populate: [
-      {
-        path: "user",
-        select: "fullName avatar",
-      },
-      {
-        path: "replies",
-        populate: {
+  const post = await query.populate([
+    {
+      path: "comments",
+      match: { parent: null },
+      populate: [
+        {
           path: "user",
           select: "fullName avatar",
         },
-      },
-    ],
-  });
-
+        {
+          path: "replies",
+          populate: {
+            path: "user",
+            select: "fullName avatar",
+          },
+        },
+      ],
+    },
+    {
+      path: "author",
+      select: "fullName avatar",
+    },
+  ]);
+  
   if (!post) return next(new AppError("Post not found", 404));
 
   // Increment view count
@@ -279,7 +285,12 @@ const updatePost = catchAsyncError(async (req, res, next) => {
 });
 
 // const createPost = factory.createOne(Post, { setUser: true });
-const getAllPosts = factory.getAll(Post); // will exclude soft-deleted
+const getAllPosts = factory.getAll(Post, {
+  populateOptions: {
+    path: "author",
+    select: "fullName avatar",
+  },
+}); // will exclude soft-deleted
 const deletePost = factory.deleteOne(Post, { softDelete: true }); // 👈 soft delete!
 
 module.exports = {

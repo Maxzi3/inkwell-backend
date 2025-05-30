@@ -191,9 +191,6 @@ const updatePassword = catchAsyncError(async (req, res, next) => {
   user.password = req.body.password;
   user.passwordConfirm = req.body.passwordConfirm;
   await user.save();
-
-  // 4  log user in , send jwt
-  createSendToken(user, 200, res);
 });
 
 const verifyEmail = catchAsyncError(async (req, res, next) => {

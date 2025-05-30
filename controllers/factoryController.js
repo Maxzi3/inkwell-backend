@@ -86,50 +86,60 @@ const getOne = (Model, popOptions) =>
     });
   });
 
-const getAll = (Model, { filterDeleted = true } = {}) =>
-  catchAsyncError(async (req, res, next) => {
-    let filter = {};
 
-    // Exclude soft-deleted documents
-    if (filterDeleted) {
-      filter.deleted = { $ne: true };
-    }
+  const getAll = (Model, { filterDeleted = true, populateOptions = null } = {}) =>
+    catchAsyncError(async (req, res, next) => {
+      let filter = {};
+  
+      // Exclude soft-deleted documents
+      if (filterDeleted) {
+        filter.deleted = { $ne: true };
+      }
+  
+      // If filtering by post ID (e.g., for comments)
+      if (req.query.post) {
+        filter.post = req.query.post;
+      }
+  
+      // Only return public posts for non-admin users
+      if (Model.modelName === "Post" && !req.user?.role?.includes("admin")) {
+        filter.isDraft = false;
+      }
+  
+      // Initial query
+      let query = Model.find(filter);
+  
+      // Optional populate
+      if (populateOptions) {
+        query = query.populate(populateOptions);
+      }
+  
+      // Apply query features
+      const features = new APIFeatures(query, req.query)
+        .filter()
+        .search(["title", "content"])
+        .sort()
+        .limitFields()
+        .paginate();
+  
+      const data = await features.query;
+  
+      // Count total based on filter (no populate here)
+      const total = await Model.countDocuments(filter);
+  
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 100;
 
-    // If filtering by post ID (e.g., for comments)
-    if (req.query.post) {
-      filter.post = req.query.post;
-    }
-
-    // Only return public posts for non-admin users
-    if (Model.modelName === "Post" && !req.user?.role?.includes("admin")) {
-      filter.isDraft = false;
-    }
-
-    // Apply query features (filter, sort, paginate, etc.)
-    const features = new APIFeatures(Model.find(filter), req.query)
-      .filter()
-      .search(["title", "content"])
-      .sort()
-      .limitFields()
-      .paginate();
-
-    const data = await features.query;
-
-    // Count total based on the same filter
-    const total = await Model.countDocuments(filter);
-
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 100;
-
-    res.status(200).json({
-      status: "success",
-      results: data.length,
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
-      totalResults: total,
-      data,
+  
+      res.status(200).json({
+        status: "success",
+        results: data.length,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalResults: total,
+        data,
+      });
     });
-  });
 
 module.exports = {
   deleteOne,
