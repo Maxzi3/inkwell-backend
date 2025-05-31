@@ -15,7 +15,6 @@ const filterObj = (obj, ...allowedFields) => {
   return newObj;
 };
 
-
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 const uploadPostImage = upload.single("image");
@@ -53,7 +52,7 @@ const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
       select: "fullName avatar",
     },
   ]);
-  
+
   if (!post) return next(new AppError("Post not found", 404));
 
   // Increment view count
@@ -115,6 +114,29 @@ const publishDraft = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const deleteDraft = catchAsyncError(async (req, res, next) => {
+  const draftId = req.params.id;
+  const userId = req.user.id;
+
+  const draft = await Post.findOne({ _id: draftId, author: userId });
+
+  if (!draft) {
+    return next(new AppError("Draft not found", 404));
+  }
+
+  if (!draft.isDraft) {
+    return next(
+      new AppError("This post is not a draft and cannot be deleted here", 403)
+    );
+  }
+
+  await draft.deleteOne();
+
+  res.status(204).json({
+    status: "success",
+    message: "Draft deleted successfully",
+  });
+});
 // TOGGLE LIKE
 
 const toggleLike = catchAsyncError(async (req, res, next) => {
@@ -277,6 +299,47 @@ const updatePost = catchAsyncError(async (req, res, next) => {
   });
 });
 
+
+const editDraft = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+
+  // 1. Find the post and ensure it's a draft
+  const draft = await Post.findOne({ _id: id, isDraft: true });
+
+  if (!draft) {
+    return next(new AppError("Draft not found or already published", 404));
+  }
+
+  // 2. Ensure only the owner can edit
+  if (draft.author.toString() !== req.user.id) {
+    return next(new AppError("You are not allowed to edit this draft", 403));
+  }
+
+  // 3. Filter only allowed fields
+  const filteredBody = filterObj(req.body, "title", "content", "category");
+
+  // 4. Handle image upload
+  if (req.file) {
+    const resizedBuffer = await resizeImage(req.file.buffer);
+    const uploadResult = await uploadToCloudinary(
+      resizedBuffer,
+      `post-cover-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      "posts"
+    );
+    filteredBody.image = uploadResult.secure_url;
+  }
+
+  // 5. Apply updates to the draft and save
+  Object.assign(draft, filteredBody);
+  await draft.save();
+
+  res.status(200).json({
+    status: "success",
+    message: "Draft updated successfully",
+    data: draft,
+  });
+});
+
 // const createPost = factory.createOne(Post, { setUser: true });
 const getAllPosts = factory.getAll(Post, {
   populateOptions: {
@@ -300,4 +363,6 @@ module.exports = {
   publishDraft,
   getMyLikes,
   uploadPostImage,
+  deleteDraft,
+  editDraft,
 };

@@ -14,6 +14,8 @@ const {
   publishDraft,
   getMyLikes,
   uploadPostImage,
+  deleteDraft,
+  editDraft,
 } = require("../controllers/postController");
 
 const router = express.Router();
@@ -41,6 +43,8 @@ router
   .get(getPostByIdOrSlug)
   .patch(protect, restrictTo("author", "admin"), uploadPostImage, updatePost)
   .delete(protect, restrictTo("admin", "author"), deletePost);
+  router.patch("/drafts/:id", protect,uploadPostImage, editDraft);
+  router.delete("/drafts/:id", protect, deleteDraft);
 
 module.exports = router;
 
