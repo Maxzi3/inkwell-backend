@@ -30,7 +30,7 @@ router.get("/check-auth", isLoggedIn, (req, res) => {
   res.status(200).json({
     isAuthenticated: true,
     user: {
-      name: res.locals.user.fullName,
+      fullName: res.locals.user.fullName,
       email: res.locals.user.email,
       avatar: res.locals.user.avatar,
     },

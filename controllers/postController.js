@@ -15,16 +15,9 @@ const filterObj = (obj, ...allowedFields) => {
   return newObj;
 };
 
-const multerFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image/")) {
-    cb(null, true);
-  } else {
-    cb(new AppError("Not an image! Please upload only images.", 400), false);
-  }
-};
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage, fileFilter: multerFilter });
+const upload = multer({ storage });
 const uploadPostImage = upload.single("image");
 
 const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {

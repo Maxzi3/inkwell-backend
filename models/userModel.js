@@ -28,6 +28,9 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please provide your phone number"],
     },
+    address: {
+      type: String,
+    },
     avatar: {
       type: String,
       default:

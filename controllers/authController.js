@@ -182,16 +182,23 @@ const updatePassword = catchAsyncError(async (req, res, next) => {
   // 1 Get user from collection
   const user = await User.findById(req.user.id).select("+password");
 
-  // 2 check if posted current user is correct
+  // 2 Check if posted current password is correct
   if (!(await user.correctPassword(req.body.passwordCurrent, user.password))) {
     return next(new AppError("Your password is wrong.", 401));
   }
 
-  // 3 if so  update password
+  // 3 If so, update password
   user.password = req.body.password;
   user.passwordConfirm = req.body.passwordConfirm;
   await user.save();
+
+  // ✅ 4 Send back response
+  res.status(200).json({
+    status: "success",
+    message: "Password updated successfully",
+  });
 });
+
 
 const verifyEmail = catchAsyncError(async (req, res, next) => {
   const hashedToken = crypto

@@ -55,7 +55,15 @@ module.exports = (err, req, res, next) => {
   err.status = err.status || "error";
 
   if (process.env.NODE_ENV === "development") {
-    sendErrorDev(err, res);
+    if (process.env.NODE_ENV === "development") {
+      let error = Object.create(err);
+
+      if (error.name === "JsonWebTokenError") error = handleJWTError(error);
+      if (error.name === "TokenExpiredError")
+        error = handleJWTExpiredError(error);
+
+      sendErrorDev(error, res);
+    }
   } else if (process.env.NODE_ENV === "production") {
     let error = Object.create(err);
 
