@@ -67,19 +67,32 @@ const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
 
 // TOGGLE DRAFT
 const saveAsDraft = catchAsyncError(async (req, res, next) => {
-  const { title, content } = req.body;
+  const { title, content, category } = req.body;
 
-  if (!title) {
+  if (!title && !content) {
     return next(
       new AppError("Draft must have at least a title or content", 400)
     );
   }
 
+  let image;
+  if (req.file) {
+    const resizedBuffer = await resizeImage(req.file.buffer);
+    const uploadResult = await uploadToCloudinary(
+      resizedBuffer,
+      `draft-cover-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      "drafts"
+    );
+    image = uploadResult.secure_url;
+  }
+
   const draftpost = await Post.create({
     title,
     content,
+    category,
     author: req.user._id,
     isDraft: true,
+    image,
   });
 
   res.status(201).json({
@@ -105,6 +118,7 @@ const publishDraft = catchAsyncError(async (req, res, next) => {
 
   // Update draft status
   post.isDraft = false;
+  post.createdAt = new Date();
   await post.save();
 
   res.status(200).json({
@@ -124,10 +138,8 @@ const deleteDraft = catchAsyncError(async (req, res, next) => {
     return next(new AppError("Draft not found", 404));
   }
 
-  if (!draft.isDraft) {
-    return next(
-      new AppError("This post is not a draft and cannot be deleted here", 403)
-    );
+  if (draft.isDraft === false) {
+    return next(new AppError("Cannot delete published post", 403));
   }
 
   await draft.deleteOne();
@@ -137,20 +149,16 @@ const deleteDraft = catchAsyncError(async (req, res, next) => {
     message: "Draft deleted successfully",
   });
 });
+
 // TOGGLE LIKE
-
-const toggleLike = catchAsyncError(async (req, res, next) => {
+const likePost = async (req, res) => {
   const post = await Post.findById(req.params.id);
-  if (!post) return next(new AppError("Post not found", 404));
-
   const userId = req.user._id;
-  const alreadyLiked = post.likes.includes(userId);
 
-  if (alreadyLiked) {
-    post.likes.pull(userId);
-  } else {
+  if (!post.likes.includes(userId)) {
     post.likes.push(userId);
 
+    // Optional: Create notification
     if (post.author.toString() !== userId.toString()) {
       await Notification.create({
         recipient: post.author,
@@ -159,38 +167,59 @@ const toggleLike = catchAsyncError(async (req, res, next) => {
         post: post._id,
       });
     }
+
+    await post.save();
   }
 
+  res.status(200).json({ message: "Liked", likes: post.likes.length });
+};
+
+const unlikePost = async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  const userId = req.user._id;
+
+  post.likes.pull(userId);
   await post.save();
 
-  res.status(200).json({
-    status: "success",
-    data: { liked: !alreadyLiked, totalLikes: post.likes.length },
-  });
-});
+  res.status(200).json({ message: "Unliked", likes: post.likes.length });
+};
 
 // TOGGLE BOOKMARK
-const toggleBookmark = catchAsyncError(async (req, res, next) => {
+const bookmarkPost = async (req, res) => {
   const post = await Post.findById(req.params.id);
-  if (!post) return next(new AppError("Post not found", 404));
-
   const userId = req.user._id;
-  const alreadyBookmarked = post.bookmarks.includes(userId);
 
-  if (alreadyBookmarked) {
-    post.bookmarks.pull(userId);
-  } else {
+  if (!post.bookmarks.includes(userId)) {
     post.bookmarks.push(userId);
+    await post.save();
   }
 
+  res
+    .status(200)
+    .json({ message: "Bookmarked", bookmarks: post.bookmarks.length });
+};
+
+const unbookmarkPost = async (req, res) => {
+  const post = await Post.findById(req.params.id);
+  const userId = req.user._id;
+
+  post.bookmarks.pull(userId);
   await post.save();
+
+  res
+    .status(200)
+    .json({ message: "Unbookmarked", bookmarks: post.bookmarks.length });
+};
+
+const getUserPosts = catchAsyncError(async (req, res, next) => {
+  const posts = await Post.find({ author: req.user._id })
+    .populate("author", "fullName avatar")
+    .sort("-createdAt");
 
   res.status(200).json({
     status: "success",
-    data: {
-      bookmarked: !alreadyBookmarked,
-      totalBookmarks: post.bookmarks.length,
-    },
+    results: posts.length,
+    data: posts,
   });
 });
 
@@ -213,7 +242,9 @@ const getMyLikes = catchAsyncError(async (req, res, next) => {
     likes: req.user._id,
     isDraft: false,
     deleted: false,
-  }).sort("-createdAt");
+  })
+    .sort("-createdAt")
+    .populate("author", "fullName avatar");
 
   res.status(200).json({
     status: "success",
@@ -227,7 +258,9 @@ const getMyBookmarks = catchAsyncError(async (req, res, next) => {
     bookmarks: req.user._id,
     isDraft: false,
     deleted: false,
-  }).sort("-createdAt");
+  })
+    .sort("-createdAt")
+    .populate({ path: "author", select: "fullName avatar" });
 
   res.status(200).json({
     status: "success",
@@ -299,7 +332,6 @@ const updatePost = catchAsyncError(async (req, res, next) => {
   });
 });
 
-
 const editDraft = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
@@ -355,8 +387,10 @@ module.exports = {
   getAllPosts,
   updatePost,
   deletePost,
-  toggleLike,
-  toggleBookmark,
+  likePost,
+  unlikePost,
+  bookmarkPost,
+  unbookmarkPost,
   saveAsDraft,
   getMyDrafts,
   getMyBookmarks,
@@ -365,4 +399,5 @@ module.exports = {
   uploadPostImage,
   deleteDraft,
   editDraft,
+  getUserPosts,
 };

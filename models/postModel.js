@@ -5,16 +5,24 @@ const postSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, "A post must have a title"],
+      required: function () {
+        return !this.isDraft;
+      },
     },
     slug: String,
-    category: { type: String, required: true, set: (val) => val.toLowerCase() },
-    image: {
+    category: {
       type: String,
+      required: function () {
+        return !this.isDraft;
+      },
+      set: (val) => val.toLowerCase(),
     },
+    image: String,
     content: {
       type: String,
-      required: [true, "A post must have content"],
+      required: function () {
+        return !this.isDraft;
+      },
     },
     author: {
       type: mongoose.Schema.ObjectId,
@@ -50,6 +58,5 @@ postSchema.virtual("comments", {
 
 postSchema.set("toObject", { virtuals: true });
 postSchema.set("toJSON", { virtuals: true });
+
 module.exports = mongoose.model("Post", postSchema);
-
-

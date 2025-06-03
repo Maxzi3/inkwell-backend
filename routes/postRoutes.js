@@ -6,8 +6,10 @@ const {
   getAllPosts,
   updatePost,
   deletePost,
-  toggleLike,
-  toggleBookmark,
+  likePost,
+  unlikePost,
+  bookmarkPost,
+  unbookmarkPost,
   saveAsDraft,
   getMyDrafts,
   getMyBookmarks,
@@ -16,6 +18,7 @@ const {
   uploadPostImage,
   deleteDraft,
   editDraft,
+  getUserPosts,
 } = require("../controllers/postController");
 
 const router = express.Router();
@@ -24,16 +27,27 @@ router.get("/my/drafts", protect, getMyDrafts);
 router.get("/my/bookmarks", protect, getMyBookmarks);
 router.get("/my/likes", protect, getMyLikes);
 
+router.get("/my/posts", protect, getUserPosts); 
+
 router
   .route("/")
   .get(getAllPosts)
   .post(protect, restrictTo("author", "admin"), uploadPostImage, createPost);
 
-router.post("/draft", protect, restrictTo("author", "admin"), saveAsDraft);
-router.patch("/:id/like", protect, toggleLike);
-router.patch("/:id/bookmark", protect, toggleBookmark);
+router.post(
+  "/draft",
+  protect,
+  restrictTo("author", "admin"),
+  uploadPostImage,
+  saveAsDraft
+);
+router.post("/:id/like", protect, likePost);
+router.delete("/:id/like", protect, unlikePost);
+router.post("/:id/bookmark", protect, bookmarkPost);
+router.delete("/:id/bookmark", protect, unbookmarkPost);
+
 router.patch(
-  "/:id/publish",
+  "/:id/publishDraft",
   protect,
   restrictTo("author", "admin"),
   publishDraft
@@ -43,11 +57,10 @@ router
   .get(getPostByIdOrSlug)
   .patch(protect, restrictTo("author", "admin"), uploadPostImage, updatePost)
   .delete(protect, restrictTo("admin", "author"), deletePost);
-  router.patch("/drafts/:id", protect,uploadPostImage, editDraft);
-  router.delete("/drafts/:id", protect, deleteDraft);
+router.patch("/drafts/:id", protect, uploadPostImage, editDraft);
+router.delete("/drafts/:id", protect, deleteDraft);
 
 module.exports = router;
-
 
 // GET /api/v1/posts?search=typescript&page=1&limit=10
 // hit ths for searching posts by title or content
