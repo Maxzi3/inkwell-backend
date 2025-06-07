@@ -3,6 +3,7 @@ const Post = require("../models/postModel");
 const Notification = require("../models/notificationModel");
 const catchAsyncError = require("../utils/catchAsyncError");
 const AppError = require("../utils/appError");
+const APIFeatures = require("../utils/apiFeatures");
 
 // Create comment or reply
 const createComment = catchAsyncError(async (req, res, next) => {
@@ -18,7 +19,7 @@ const createComment = catchAsyncError(async (req, res, next) => {
       sender: req.user._id,
       type: "comment",
       post: postId,
-      comment: comment._id,
+      comment: Comment._id,
     });
   }
 

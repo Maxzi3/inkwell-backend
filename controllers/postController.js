@@ -212,7 +212,11 @@ const unbookmarkPost = async (req, res) => {
 };
 
 const getUserPosts = catchAsyncError(async (req, res, next) => {
-  const posts = await Post.find({ author: req.user._id })
+  const posts = await Post.find({
+    author: req.user._id,
+    isDraft: false,
+    deleted: false,
+  })
     .populate("author", "fullName avatar")
     .sort("-createdAt");
 

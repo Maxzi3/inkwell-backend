@@ -87,60 +87,62 @@ const getOne = (Model, popOptions) =>
   });
 
 
-  const getAll = (Model, { filterDeleted = true, populateOptions = null } = {}) =>
+  const getAll = (
+    Model,
+    { filterDeleted = true, populateOptions = null } = {}
+  ) =>
     catchAsyncError(async (req, res, next) => {
       let filter = {};
-  
-      // Exclude soft-deleted documents
+
       if (filterDeleted) {
         filter.deleted = { $ne: true };
       }
-  
-      // If filtering by post ID (e.g., for comments)
+
       if (req.query.post) {
         filter.post = req.query.post;
       }
-  
-      // Only return public posts for non-admin users
+
       if (Model.modelName === "Post" && !req.user?.role?.includes("admin")) {
         filter.isDraft = false;
       }
-  
-      // Initial query
+
+      // Apply all query features (filter, search, pagination, etc.)
       let query = Model.find(filter);
-  
-      // Optional populate
       if (populateOptions) {
         query = query.populate(populateOptions);
       }
-  
-      // Apply query features
+
       const features = new APIFeatures(query, req.query)
         .filter()
         .search(["title", "content"])
         .sort()
         .limitFields()
         .paginate();
-  
-      const data = await features.query;
-  
-      // Count total based on filter (no populate here)
-      const total = await Model.countDocuments(filter);
-  
-      const page = parseInt(req.query.page, 10) || 1;
-      const limit = parseInt(req.query.limit, 10) || 100;
 
-  
+      const data = await features.query;
+
+      //  Generate another query to count total WITH search + filter
+      let countQuery = Model.find(filter);
+
+      const countFeatures = new APIFeatures(countQuery, req.query)
+        .filter()
+        .search(["title", "content"]);
+
+      const totalFiltered = await countFeatures.query.countDocuments();
+
+      const page = parseInt(req.query.page, 10) || 1;
+      const limit = parseInt(req.query.limit, 10) || 10;
+
       res.status(200).json({
         status: "success",
         results: data.length,
         currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalResults: total,
+        totalPages: Math.ceil(totalFiltered / limit),
+        totalResults: totalFiltered,
         data,
       });
     });
-
+    
 module.exports = {
   deleteOne,
   updateOne,

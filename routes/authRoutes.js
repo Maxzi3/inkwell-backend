@@ -22,6 +22,7 @@ router.post("/forgotPassword", forgotPassword);
 router.post("/resend-verification", resendEmailVerification);
 router.patch("/updateMyPassword", protect, updatePassword);
 
+
 router.get("/check-auth", isLoggedIn, (req, res) => {
   if (!res.locals?.user) {
     return res.status(200).json({ isAuthenticated: false, user: null });

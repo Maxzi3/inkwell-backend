@@ -58,7 +58,7 @@ const signUp = catchAsyncError(async (req, res, next) => {
   const verificationToken = newUser.createEmailVerificationToken();
   await newUser.save({ validateBeforeSave: false });
 
-  const verificationUrl = `${process.env.BACKEND_URL}/verify-email/${verificationToken}`;
+  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
   await new Email(newUser, verificationUrl).sendEmailVerification();
 
   res.status(201).json({
