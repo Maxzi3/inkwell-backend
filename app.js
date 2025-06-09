@@ -1,6 +1,7 @@
+const path = require("path");
 const express = require("express");
 const morgan = require("morgan");
-// const rateLimit = require("express-rate-limit");
+const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const xss = require("xss-clean");
@@ -37,14 +38,14 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // LIMIT REQUEST FROM API
-// const limiter = rateLimit({
-//   windowMs: 60 * 60 * 1000, // 1 hour
-//   max: 100, // limit each IP to 100 requests per hour
-//   message: "Too many requests from this IP, please try again in an hour",
-//   standardHeaders: true, // helpful for rate limit headers
-//   legacyHeaders: false,
-// });
-// app.use("/api", limiter);
+const limiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 100, // limit each IP to 100 requests per hour
+  message: "Too many requests from this IP, please try again in an hour",
+  standardHeaders: true, // helpful for rate limit headers
+  legacyHeaders: false,
+});
+app.use("/api", limiter);
 
 // Body parser, reading data from body into req.body
 app.use(express.json({ limit: "10kb" }));
@@ -58,14 +59,8 @@ app.use(xss());
 
 // Prevent Parameter Pollution
 app.use(
-  hpp({
-    whitelist: ["duration", "ratingsQuantity", "ratingsAverage"],
-  })
+  hpp()
 );
-
-app.get("/", (req, res) => {
-  res.send("Welcome to InkWell Backend API!");
-});
 
 // Using Express router
 app.use("/api/auth", authRouter);
@@ -73,6 +68,15 @@ app.use("/api/users", userRouter);
 app.use("/api/posts", postRouter);
 app.use("/api/posts/:postId/comments", commentRouter);
 app.use("/api/notifications", notificationRouter);
+
+// 🔽 Serve static files from React
+const frontendPath = path.join(__dirname, "dist"); 
+app.use(express.static(frontendPath));
+
+// ⚠️ Handle all other routes (React Router)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
