@@ -1,6 +1,7 @@
+const path = require("path");
 const express = require("express");
 const morgan = require("morgan");
-// const rateLimit = require("express-rate-limit");
+const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const mongoSanitize = require("express-mongo-sanitize");
 const xss = require("xss-clean");
@@ -18,65 +19,89 @@ const notificationRouter = require("./routes/notificationRoutes");
 
 const app = express();
 
-//GLOBAL  MIDDLEWARES
+// 1. GLOBAL MIDDLEWARES
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL, // or whatever your frontend is
-    credentials: true, // <--- MUST BE TRUE to allow cookies
+    origin: process.env.FRONTEND_URL, // frontend URL from .env
+    credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
   })
 );
 
-// Set Security HTTP Headers
-app.use(helmet());
+// 2. Security HTTP headers + CSP (Cloudinary, Google Fonts, etc.)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "https:", "'unsafe-inline'"],
+        styleSrc: [
+          "'self'",
+          "https:",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+        ],
+        fontSrc: ["'self'", "https:", "data:", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "https://res.cloudinary.com"],
+        connectSrc: [
+          "'self'",
+          "https:",
+          process.env.FRONTEND_URL,
+          process.env.BACKEND_URL,
+        ],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'self'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+  })
+);
+app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
+app.use(helmet.referrerPolicy({ policy: "strict-origin-when-cross-origin" }));
 
-// DEVELOPMENT LOGIN
+// 3. Logging in development
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// LIMIT REQUEST FROM API
-// const limiter = rateLimit({
-//   windowMs: 60 * 60 * 1000, // 1 hour
-//   max: 100, // limit each IP to 100 requests per hour
-//   message: "Too many requests from this IP, please try again in an hour",
-//   standardHeaders: true, // helpful for rate limit headers
-//   legacyHeaders: false,
-// });
-// app.use("/api", limiter);
-
-// Body parser, reading data from body into req.body
-app.use(express.json({ limit: "10kb" }));
-
-// Data Sanitization against NoSQL query Injection
-app.use(mongoSanitize());
-app.use(cookieParser());
-
-// Data Sanitization against XSS
-app.use(xss());
-
-// Prevent Parameter Pollution
-app.use(
-  hpp({
-    whitelist: ["duration", "ratingsQuantity", "ratingsAverage"],
-  })
-);
-
-app.get("/", (req, res) => {
-  res.send("Welcome to InkWell Backend API!");
+// 4. Rate limiting
+const limiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 100, // limit per IP
+  message: "Too many requests from this IP, please try again in an hour",
+  standardHeaders: true,
+  legacyHeaders: false,
 });
+app.use("/api", limiter);
 
-// Using Express router
+// 5. Body parser and sanitizers
+app.use(express.json({ limit: "10kb" }));
+app.use(cookieParser());
+app.use(mongoSanitize());
+app.use(xss());
+app.use(hpp());
+
+// 6. Routers
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
 app.use("/api/posts", postRouter);
 app.use("/api/posts/:postId/comments", commentRouter);
 app.use("/api/notifications", notificationRouter);
 
+// 7. Serve frontend
+const frontendPath = path.join(__dirname, "dist");
+app.use(express.static(frontendPath));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"));
+});
+
+// 8. Global error handler
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
 });
-
 app.use(globalErrorHandler);
+
 module.exports = app;
