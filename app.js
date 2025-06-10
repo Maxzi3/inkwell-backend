@@ -67,12 +67,12 @@ if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
-// 4. Rate limiting
+// LIMIT REQUEST FROM API
 const limiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 100, // limit per IP
+  max: 100, // limit each IP to 100 requests per hour
   message: "Too many requests from this IP, please try again in an hour",
-  standardHeaders: true,
+  standardHeaders: true, // helpful for rate limit headers
   legacyHeaders: false,
 });
 app.use("/api", limiter);
@@ -82,7 +82,11 @@ app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 app.use(mongoSanitize());
 app.use(xss());
-app.use(hpp());
+
+// Prevent Parameter Pollution
+app.use(
+  hpp()
+);
 
 // 6. Routers
 app.use("/api/auth", authRouter);
@@ -91,14 +95,15 @@ app.use("/api/posts", postRouter);
 app.use("/api/posts/:postId/comments", commentRouter);
 app.use("/api/notifications", notificationRouter);
 
-// 7. Serve frontend
-const frontendPath = path.join(__dirname, "dist");
+// 🔽 Serve static files from React
+const frontendPath = path.join(__dirname, "dist"); 
 app.use(express.static(frontendPath));
+
+// ⚠️ Handle all other routes (React Router)
 app.get("*", (req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// 8. Global error handler
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server`, 404));
 });
