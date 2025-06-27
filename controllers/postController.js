@@ -22,9 +22,12 @@ const uploadPostImage = upload.single("image");
 const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
+  // Try to extract ObjectId from end of slug
+  const objectId = id.match(/([a-f\d]{24})$/)?.[1];
+
   let query;
-  if (mongoose.Types.ObjectId.isValid(id)) {
-    query = Post.findById(id);
+  if (objectId && mongoose.Types.ObjectId.isValid(objectId)) {
+    query = Post.findById(objectId);
   } else {
     query = Post.findOne({ slug: id });
   }
@@ -55,7 +58,6 @@ const getPostByIdOrSlug = catchAsyncError(async (req, res, next) => {
 
   if (!post) return next(new AppError("Post not found", 404));
 
-  // Increment view count
   post.views += 1;
   await post.save({ validateBeforeSave: false });
 
@@ -105,28 +107,37 @@ const saveAsDraft = catchAsyncError(async (req, res, next) => {
 const publishDraft = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  // Find the post first
-  const post = await Post.findOne({
+  const draft = await Post.findOne({
     _id: id,
     author: req.user._id,
-    isDraft: true, // make sure it's currently a draft
+    isDraft: true,
   });
 
-  if (!post) {
+  if (!draft) {
     return next(new AppError("Draft not found or already published", 404));
   }
 
-  // Update draft status
-  post.isDraft = false;
-  post.createdAt = new Date();
-  await post.save();
+  // Clone draft (excluding _id and timestamps)
+  const publishedPost = await Post.create({
+    title: draft.title,
+    content: draft.content,
+    category: draft.category,
+    image: draft.image,
+    author: draft.author,
+    isDraft: false, // Mark as published
+    // new createdAt and slug will be auto-generated
+  });
 
-  res.status(200).json({
+  // Delete original draft
+  await Post.findByIdAndDelete(draft._id);
+
+  res.status(201).json({
     status: "success",
-    message: "Post has been published.",
-    post,
+    message: "Post published",
+    data: publishedPost,
   });
 });
+
 
 const deleteDraft = catchAsyncError(async (req, res, next) => {
   const draftId = req.params.id;

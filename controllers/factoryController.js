@@ -87,7 +87,7 @@ const getOne = (Model, popOptions) =>
   });
 
 
-  const getAll = (
+  const   getAll = (
     Model,
     { filterDeleted = true, populateOptions = null } = {}
   ) =>
@@ -106,7 +106,6 @@ const getOne = (Model, popOptions) =>
         filter.isDraft = false;
       }
 
-      // Apply all query features (filter, search, pagination, etc.)
       let query = Model.find(filter);
       if (populateOptions) {
         query = query.populate(populateOptions);
@@ -121,13 +120,51 @@ const getOne = (Model, popOptions) =>
 
       const data = await features.query;
 
-      //  Generate another query to count total WITH search + filter
-      let countQuery = Model.find(filter);
+      // 🧠 Add comment count if model is Post
+      if (Model.modelName === "Post") {
+        const Comment = require("../models/commentModel");
 
+        // Use Promise.all to fetch counts concurrently
+        const postsWithCommentCount = await Promise.all(
+          data.map(async (post) => {
+            const count = await Comment.countDocuments({
+              post: post._id,
+              parent: null, // top-level only
+            });
+
+            // Add commentCount manually to each post object
+            return {
+              ...post._doc,
+              commentCount: count,
+            };
+          })
+        );
+
+        // count logic
+        let countQuery = Model.find(filter);
+        const countFeatures = new APIFeatures(countQuery, req.query)
+          .filter()
+          .search(["title", "content"]);
+        const totalFiltered = await countFeatures.query.countDocuments();
+
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+
+        return res.status(200).json({
+          status: "success",
+          results: postsWithCommentCount.length,
+          currentPage: page,
+          totalPages: Math.ceil(totalFiltered / limit),
+          totalResults: totalFiltered,
+          data: postsWithCommentCount,
+        });
+      }
+
+      // For non-post models (fallback)
+      const countQuery = Model.find(filter);
       const countFeatures = new APIFeatures(countQuery, req.query)
         .filter()
         .search(["title", "content"]);
-
       const totalFiltered = await countFeatures.query.countDocuments();
 
       const page = parseInt(req.query.page, 10) || 1;
@@ -142,6 +179,7 @@ const getOne = (Model, popOptions) =>
         data,
       });
     });
+  
     
 module.exports = {
   deleteOne,

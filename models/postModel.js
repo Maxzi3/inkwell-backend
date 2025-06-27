@@ -43,19 +43,30 @@ const postSchema = new mongoose.Schema(
 );
 
 // Middleware to create slug before saving
-postSchema.pre("save", function (next) {
-  if (!this.isModified("title")) return next();
-  this.slug = slugify(this.title, { lower: true });
+postSchema.post("save", async function (doc, next) {
+  if (!doc.slug) {
+    const generatedSlug =
+      slugify(doc.title, { lower: true, strict: true }) + `-${doc._id}`;
+    await mongoose.models.Post.findByIdAndUpdate(doc._id, {
+      slug: generatedSlug,
+    });
+  }
   next();
 });
 
-// Virtual populate for comment
+// Virtual populate for comments
 postSchema.virtual("comments", {
   ref: "Comment",
   foreignField: "post",
   localField: "_id",
 });
 
+// Virtual field for like count
+postSchema.virtual("likesCount").get(function () {
+  return this.likes?.length || 0;
+});
+
+// Enable virtuals in JSON and Object responses
 postSchema.set("toObject", { virtuals: true });
 postSchema.set("toJSON", { virtuals: true });
 
